@@ -64,7 +64,14 @@ function TokenStep({ onNext }) {
   const [error, setError] = useState('');
   const [valid, setValid] = useState(false);
 
-  async function handleValidate() {
+  useEffect(() => {
+    if (!valid) return;
+    const id = setTimeout(() => onNext(), 600);
+    return () => clearTimeout(id);
+  }, [valid, onNext]);
+
+  async function handleValidate(e) {
+    if (e) e.preventDefault();
     setError('');
     setValidating(true);
     try {
@@ -76,7 +83,6 @@ function TokenStep({ onNext }) {
       const data = await res.json();
       if (res.ok && data.valid) {
         setValid(true);
-        setTimeout(() => onNext(), 600);
       } else {
         setError(data.errors?.[0]?.message || 'Invalid token');
       }
@@ -93,10 +99,11 @@ function TokenStep({ onNext }) {
       <p className="text-gray-600 mb-6 text-center">
         Paste your API token below to connect FlareDDNS to your Cloudflare account.
       </p>
-      <div className="space-y-4">
+      <form onSubmit={handleValidate} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">API Token</label>
+          <label htmlFor="api-token" className="block text-sm font-medium text-gray-700 mb-1">API Token</label>
           <input
+            id="api-token"
             type="password"
             value={token}
             onChange={e => setToken(e.target.value)}
@@ -104,16 +111,16 @@ function TokenStep({ onNext }) {
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cf-orange"
           />
         </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p role="alert" className="text-red-500 text-sm">{error}</p>}
         {valid && <p className="text-green-600 text-sm font-medium">Token validated successfully!</p>}
         <button
-          onClick={handleValidate}
+          type="submit"
           disabled={!token.trim() || validating || valid}
           className="w-full py-2 bg-cf-orange text-white rounded-lg hover:bg-cf-orange-dark transition-colors disabled:opacity-50"
         >
           {validating ? 'Validating...' : valid ? 'Validated!' : 'Validate Token'}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
@@ -202,7 +209,7 @@ function ZoneStep({ onNext, setCompletionData }) {
             }`}>{zone.status}</span>
           </label>
         ))}
-        {zones.length === 0 && (
+        {zones.length === 0 && !error && (
           <p className="text-gray-500 text-center py-4">No zones found in your Cloudflare account.</p>
         )}
       </div>
@@ -221,19 +228,24 @@ function CodeBlock({ title, children }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    navigator.clipboard.writeText(children).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(children)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
   }
 
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium text-gray-700">{title}</span>
-        <button onClick={handleCopy} className="text-xs text-cf-orange hover:text-cf-orange-dark">
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
+        {navigator.clipboard && (
+          <button type="button" onClick={handleCopy} className="text-xs text-cf-orange hover:text-cf-orange-dark">
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        )}
       </div>
       <pre className="bg-gray-900 text-gray-100 text-sm p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">{children}</pre>
     </div>
@@ -296,7 +308,7 @@ your.domain.com`}</CodeBlock>
   );
 }
 
-export default function SetupWizard({ onComplete }) {
+export default function SetupWizard({ onComplete = () => {} }) {
   const [step, setStep] = useState(0);
   const [completionData, setCompletionData] = useState(null);
 
