@@ -1,6 +1,7 @@
 services:
   flareddns:
     image: sashatech/flareddns:latest
+    platform: linux/amd64
     ports:
       - "8080:8080"
     volumes:
