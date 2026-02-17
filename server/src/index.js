@@ -6,7 +6,8 @@ const { getDb, close } = require('./db');
 
 const app = express();
 
-app.set('trust proxy', true);
+// Trust first proxy hop (nginx, traefik, etc.)
+app.set('trust proxy', 1);
 
 const SQLiteStore = require('connect-sqlite3')(session);
 app.use(session({
@@ -20,10 +21,12 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
   },
 }));
 
+// Init database before starting — fail fast on schema errors
 getDb();
 
 const { createAuthRouter } = require('./routes/auth');
@@ -42,13 +45,26 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
+// Express error handler
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 const server = app.listen(config.port, () => {
   console.log(`FlareDDNS running on port ${config.port}`);
 });
 
 function shutdown() {
   console.log('Shutting down...');
+  const forceExit = setTimeout(() => {
+    console.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 10000);
+  forceExit.unref();
+
   server.close(() => {
+    clearTimeout(forceExit);
     close();
     process.exit(0);
   });
@@ -56,3 +72,6 @@ function shutdown() {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});

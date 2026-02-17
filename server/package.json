@@ -9,9 +9,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
-    "cors": "^2.8.5",
+    "connect-sqlite3": "^0.9.15",
     "express": "^4.21.0",
-    "express-session": "^1.18.0",
-    "connect-sqlite3": "^0.9.15"
+    "express-session": "^1.18.0"
   }
 }
