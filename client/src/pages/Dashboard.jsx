@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -6,7 +6,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef(null);
 
-  function fetchDashboard() {
+  const fetchDashboard = useCallback(() => {
     fetch('/api/dashboard')
       .then(r => {
         if (!r.ok) throw new Error('Failed to fetch dashboard');
@@ -21,13 +21,13 @@ export default function Dashboard() {
         setError(err.message);
         setLoading(false);
       });
-  }
+  }, []);
 
   useEffect(() => {
     fetchDashboard();
     intervalRef.current = setInterval(fetchDashboard, 30000);
     return () => clearInterval(intervalRef.current);
-  }, []);
+  }, [fetchDashboard]);
 
   if (loading) {
     return <div className="text-center py-12 text-gray-500">Loading dashboard...</div>;

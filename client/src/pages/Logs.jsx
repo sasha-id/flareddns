@@ -12,6 +12,7 @@ const BADGE_COLORS = {
 };
 
 function getBadgeClass(response) {
+  if (!response) return 'bg-gray-100 text-gray-700';
   const key = response.split(' ')[0];
   return BADGE_COLORS[key] || 'bg-gray-100 text-gray-700';
 }
@@ -41,6 +42,7 @@ export default function Logs() {
 
     try {
       const res = await fetch(`/api/logs?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch logs');
       const data = await res.json();
       setLogs(data.logs || []);
       setTotal(data.total || 0);
@@ -96,6 +98,7 @@ export default function Logs() {
           placeholder="Filter by hostname..."
           value={hostname}
           onChange={e => setHostname(e.target.value)}
+          aria-label="Filter by hostname"
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange"
         />
         <input
@@ -103,6 +106,7 @@ export default function Logs() {
           placeholder="Filter by response..."
           value={response}
           onChange={e => setResponse(e.target.value)}
+          aria-label="Filter by response"
           className="w-40 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange"
         />
         <button type="submit" className="px-4 py-2 bg-cf-orange text-white rounded-lg text-sm hover:bg-cf-orange-dark transition-colors">
@@ -141,7 +145,7 @@ export default function Logs() {
                   <td className="px-4 py-2.5 text-gray-700">{log.username || '—'}</td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getBadgeClass(log.response)}`}>
-                      {log.response}
+                      {log.response || '—'}
                     </span>
                   </td>
                 </tr>

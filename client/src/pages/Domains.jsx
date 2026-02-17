@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function Domains() {
   const [records, setRecords] = useState([]);
@@ -9,6 +9,7 @@ export default function Domains() {
   const [form, setForm] = useState({ zoneId: '', subdomain: '', type: 'A', content: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const zoneInitRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -16,10 +17,12 @@ export default function Domains() {
         fetch('/api/records'),
         fetch('/api/zones'),
       ]);
+      if (!recordsRes.ok || !zonesRes.ok) throw new Error('Failed to load data');
       setRecords(await recordsRes.json());
       const z = await zonesRes.json();
       setZones(z);
-      if (!form.zoneId && z.length > 0) {
+      if (!zoneInitRef.current && z.length > 0) {
+        zoneInitRef.current = true;
         setForm(prev => ({ ...prev, zoneId: z[0].id }));
       }
     } catch {
@@ -35,9 +38,8 @@ export default function Domains() {
     setSyncing(true);
     try {
       const res = await fetch('/api/zones/sync', { method: 'POST' });
-      if (res.ok) {
-        setZones(await res.json());
-      }
+      if (!res.ok) throw new Error('Failed to sync zones');
+      setZones(await res.json());
     } catch {
       setError('Failed to sync zones');
     } finally {
@@ -74,9 +76,14 @@ export default function Domains() {
     setError('');
 
     const zone = zones.find(z => z.id === form.zoneId);
+    if (!zone) {
+      setError('Please select a zone');
+      setSubmitting(false);
+      return;
+    }
     const name = form.subdomain
-      ? `${form.subdomain}.${zone?.name}`
-      : zone?.name;
+      ? `${form.subdomain}.${zone.name}`
+      : zone.name;
 
     try {
       const res = await fetch('/api/records', {
