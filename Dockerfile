@@ -16,7 +16,7 @@ COPY server/package.json server/
 RUN npm ci --workspace=server --omit=dev
 COPY server/ server/
 COPY --from=client-build /build/client/dist client/dist/
-RUN mkdir -p data
+RUN mkdir -p data && chown node:node data
 EXPOSE 8080
 USER node
 CMD ["node", "server/src/index.js"]

@@ -2,7 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('node:path');
 const config = require('./config');
-const { getDb, close } = require('./db');
+const { getDb, getSetting, setSetting, close } = require('./db');
 
 const app = express();
 
@@ -20,7 +20,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
   },
@@ -28,6 +28,11 @@ app.use(session({
 
 // Init database before starting — fail fast on schema errors
 getDb();
+
+// Seed CF_API_TOKEN from env if DB has none
+if (config.cfApiToken && !getSetting('cf_api_token')) {
+  setSetting('cf_api_token', config.cfApiToken);
+}
 
 const { createAuthRouter } = require('./routes/auth');
 const { createSetupRouter } = require('./routes/setup');

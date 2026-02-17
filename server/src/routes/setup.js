@@ -2,6 +2,7 @@ const express = require('express');
 const { getDb, setSetting, getSetting } = require('../db');
 const cf = require('../cloudflare');
 const config = require('../config');
+const { requireAuth } = require('../middleware/auth');
 
 function createSetupRouter() {
   const router = express.Router();
@@ -12,6 +13,8 @@ function createSetupRouter() {
     }
     next();
   });
+
+  router.use(requireAuth);
 
   router.post('/validate-token', express.json(), async (req, res) => {
     const { token } = req.body;

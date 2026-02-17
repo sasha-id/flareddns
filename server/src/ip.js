@@ -1,17 +1,10 @@
 const net = require('node:net');
 
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) {
-    const first = xff.split(',')[0].trim();
-    return stripMapped(first);
+  // Use req.ip when available (Express with trust proxy configured)
+  if (req.ip) {
+    return stripMapped(req.ip);
   }
-
-  const xri = req.headers['x-real-ip'];
-  if (xri) {
-    return stripMapped(xri.trim());
-  }
-
   return stripMapped(req.socket.remoteAddress || '');
 }
 

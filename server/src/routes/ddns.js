@@ -20,94 +20,99 @@ function safeEqual(a, b) {
 
 function createDdnsRouter() {
   const router = express.Router();
-  const rateLimiter = createRateLimiter({ windowMs: 60000, maxRequests: 30 });
+  const windowMs = parseInt(getSetting('rate_limit_window') || '60000');
+  const maxRequests = parseInt(getSetting('rate_limit_max') || '30');
+  const rateLimiter = createRateLimiter({ windowMs, maxRequests });
 
-  function handler(req, res) {
+  async function handler(req, res) {
     res.set('Content-Type', 'text/plain');
 
-    // Parse Basic Auth
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-      return res.status(401).send('badauth');
-    }
-
-    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-    const [username, ...passparts] = decoded.split(':');
-    const password = passparts.join(':');
-
-    // Validate against DDNS_USERS
-    const validUser = config.ddnsUsers.find(u => safeEqual(u.username, username) && safeEqual(u.password, password));
-    if (!validUser) {
-      logUpdate(req, '', '', username, 'badauth');
-      return res.send('badauth');
-    }
-
-    // Parse hostnames
-    const hostnameParam = req.query.hostname || '';
-    if (!hostnameParam) {
-      logUpdate(req, '', '', username, 'notfqdn');
-      return res.send('notfqdn');
-    }
-
-    const hostnames = hostnameParam.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
-    if (hostnames.length === 0) {
-      logUpdate(req, '', '', username, 'notfqdn');
-      return res.send('notfqdn');
-    }
-
-    // Parse IPs
-    const myipParam = req.query.myip || '';
-    const detectedIp = getClientIp(req);
-    const ips = myipParam
-      ? myipParam.split(',').map(ip => ip.trim()).filter(ip => ip && (isIPv4(ip) || isIPv6(ip)))
-      : [detectedIp];
-
-    if (ips.length === 0) {
-      logUpdate(req, hostnames[0], '', username, 'dnserr');
-      return res.send('dnserr');
-    }
-
-    // Get zones from DB
-    const db = getDb();
-    const zones = db.prepare('SELECT id, name, status FROM zones').all();
-    const token = getSetting('cf_api_token');
-
-    if (!token) {
-      return res.send('911');
-    }
-
-    // Process each hostname
-    const promises = hostnames.map(async (hostname) => {
-      if (!rateLimiter.check(hostname)) {
-        logUpdate(req, hostname, ips[0] || detectedIp, username, 'abuse');
-        return 'abuse';
+    try {
+      // Parse Basic Auth
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Basic ')) {
+        return res.status(401).send('badauth');
       }
 
-      const zone = findZoneForHostname(hostname, zones);
-      if (!zone) {
-        logUpdate(req, hostname, ips[0] || detectedIp, username, 'nohost');
-        return 'nohost';
+      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
+      const [username, ...passparts] = decoded.split(':');
+      const password = passparts.join(':');
+
+      // Validate against DDNS_USERS
+      const validUser = config.ddnsUsers.find(u => safeEqual(u.username, username) && safeEqual(u.password, password));
+      if (!validUser) {
+        logUpdate(req, '', '', username, 'badauth');
+        return res.status(401).send('badauth');
       }
 
-      const hostnameResults = [];
-      for (const ip of ips) {
-        const recordType = isIPv6(ip) ? 'AAAA' : 'A';
-        try {
-          const result = await processUpdate(token, zone, hostname, ip, recordType, db);
-          logUpdate(req, hostname, ip, username, result);
-          hostnameResults.push(result);
-        } catch (err) {
-          console.error(`Error updating ${hostname}:`, err.message);
-          logUpdate(req, hostname, ip, username, 'dnserr');
-          hostnameResults.push('dnserr');
+      // Parse hostnames
+      const hostnameParam = req.query.hostname || '';
+      if (!hostnameParam) {
+        logUpdate(req, '', '', username, 'notfqdn');
+        return res.send('notfqdn');
+      }
+
+      const hostnames = hostnameParam.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
+      if (hostnames.length === 0) {
+        logUpdate(req, '', '', username, 'notfqdn');
+        return res.send('notfqdn');
+      }
+
+      // Parse IPs
+      const myipParam = req.query.myip || '';
+      const detectedIp = getClientIp(req);
+      const ips = myipParam
+        ? myipParam.split(',').map(ip => ip.trim()).filter(ip => ip && (isIPv4(ip) || isIPv6(ip)))
+        : [detectedIp];
+
+      if (ips.length === 0) {
+        logUpdate(req, hostnames[0], '', username, 'dnserr');
+        return res.send('dnserr');
+      }
+
+      // Get zones from DB
+      const db = getDb();
+      const zones = db.prepare('SELECT id, name, status FROM zones').all();
+      const token = getSetting('cf_api_token');
+
+      if (!token) {
+        return res.send('911');
+      }
+
+      // Process each hostname
+      const results = await Promise.all(hostnames.map(async (hostname) => {
+        if (!rateLimiter.check(hostname)) {
+          logUpdate(req, hostname, ips[0] || detectedIp, username, 'abuse');
+          return 'abuse';
         }
-      }
-      return hostnameResults.join('\n');
-    });
 
-    Promise.all(promises)
-      .then(results => res.send(results.join('\n')))
-      .catch(() => res.send('911'));
+        const zone = findZoneForHostname(hostname, zones);
+        if (!zone) {
+          logUpdate(req, hostname, ips[0] || detectedIp, username, 'nohost');
+          return 'nohost';
+        }
+
+        const hostnameResults = [];
+        for (const ip of ips) {
+          const recordType = isIPv6(ip) ? 'AAAA' : 'A';
+          try {
+            const result = await processUpdate(token, zone, hostname, ip, recordType, db);
+            logUpdate(req, hostname, ip, username, result);
+            hostnameResults.push(result);
+          } catch (err) {
+            console.error(`Error updating ${hostname}:`, err.message);
+            logUpdate(req, hostname, ip, username, 'dnserr');
+            hostnameResults.push('dnserr');
+          }
+        }
+        return hostnameResults.join('\n');
+      }));
+
+      res.send(results.join('\n'));
+    } catch (err) {
+      console.error('DDNS handler error:', err);
+      res.send('911');
+    }
   }
 
   router.get('/nic/update', handler);
