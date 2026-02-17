@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navLinks = [
@@ -8,14 +9,22 @@ const navLinks = [
 ];
 
 export default function Layout() {
+  const [loggingOut, setLoggingOut] = useState(false);
+
   async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.reload();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch {
+      setLoggingOut(false);
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 shadow-sm">
+      <nav aria-label="Main" className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center space-x-8">
@@ -31,7 +40,7 @@ export default function Layout() {
                     className={({ isActive }) =>
                       `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         isActive
-                          ? 'text-cf-orange bg-orange-50'
+                          ? 'text-cf-orange-dark bg-orange-50'
                           : 'text-gray-600 hover:text-cf-orange hover:bg-gray-50'
                       }`
                     }
@@ -42,15 +51,17 @@ export default function Layout() {
               </div>
             </div>
             <button
+              type="button"
               onClick={handleLogout}
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              disabled={loggingOut}
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
             >
-              Logout
+              {loggingOut ? 'Logging out...' : 'Logout'}
             </button>
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Outlet />
       </main>
     </div>
