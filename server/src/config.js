@@ -5,7 +5,7 @@ function parseDdnsUsers(raw) {
   return raw.split(',').map(entry => {
     const [username, ...rest] = entry.trim().split(':');
     return { username, password: rest.join(':') };
-  });
+  }).filter(u => u.username && u.password);
 }
 
 const config = {

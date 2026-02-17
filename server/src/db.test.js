@@ -15,6 +15,7 @@ describe('Database', () => {
   after(() => {
     const { close } = require('./db');
     close();
+    delete require.cache[require.resolve('./db')];
     if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
   });
 

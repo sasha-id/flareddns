@@ -39,15 +39,25 @@ async function listZones(token) {
 }
 
 async function listDnsRecords(token, zoneId, type) {
-  const params = new URLSearchParams({ per_page: '100' });
-  if (type) params.set('type', type);
+  const records = [];
+  let page = 1;
+  let totalPages = 1;
 
-  const res = await fetch(`${CF_API_BASE}/zones/${zoneId}/dns_records?${params}`, {
-    headers: headers(token),
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.errors?.[0]?.message || 'Failed to list records');
-  return data.result;
+  while (page <= totalPages) {
+    const params = new URLSearchParams({ per_page: '100', page: String(page) });
+    if (type) params.set('type', type);
+
+    const res = await fetch(`${CF_API_BASE}/zones/${zoneId}/dns_records?${params}`, {
+      headers: headers(token),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.errors?.[0]?.message || 'Failed to list records');
+    records.push(...data.result);
+    totalPages = data.result_info.total_pages;
+    page++;
+  }
+
+  return records;
 }
 
 async function createDnsRecord(token, zoneId, { name, type, content, proxied, ttl }) {
