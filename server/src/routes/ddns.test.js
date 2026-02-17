@@ -16,6 +16,9 @@ describe('dyndns2 update endpoint', () => {
     process.env.DB_PATH = TEST_DB_PATH;
     process.env.DDNS_USERS = 'testuser:testpass';
 
+    delete require.cache[require.resolve('../db')];
+    delete require.cache[require.resolve('../config')];
+
     const { getDb, setSetting } = require('../db');
     const db = getDb();
     db.prepare('INSERT INTO zones (id, name, status) VALUES (?, ?, ?)').run('z1', 'example.com', 'active');
@@ -41,6 +44,8 @@ describe('dyndns2 update endpoint', () => {
     if (server) await new Promise(r => server.close(r));
     const { close } = require('../db');
     close();
+    delete require.cache[require.resolve('../db')];
+    delete require.cache[require.resolve('../config')];
     if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
   });
 
