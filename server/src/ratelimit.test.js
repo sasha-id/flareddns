@@ -1,12 +1,11 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
+const { createRateLimiter } = require('./ratelimit');
 
 describe('Rate limiter', () => {
   let rateLimiter;
 
   beforeEach(() => {
-    delete require.cache[require.resolve('./ratelimit')];
-    const { createRateLimiter } = require('./ratelimit');
     rateLimiter = createRateLimiter({ windowMs: 1000, maxRequests: 3 });
   });
 
@@ -29,6 +28,15 @@ describe('Rate limiter', () => {
     rateLimiter.check('host1');
     assert.strictEqual(rateLimiter.check('host1'), false);
     assert.strictEqual(rateLimiter.check('host2'), true);
+  });
+
+  it('should clear all limits on reset', () => {
+    rateLimiter.check('host1');
+    rateLimiter.check('host1');
+    rateLimiter.check('host1');
+    assert.strictEqual(rateLimiter.check('host1'), false);
+    rateLimiter.reset();
+    assert.strictEqual(rateLimiter.check('host1'), true);
   });
 
   it('should reset after window expires', async () => {
