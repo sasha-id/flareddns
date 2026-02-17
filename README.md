@@ -2,6 +2,8 @@
 
 Self-hosted dyndns2-to-Cloudflare DNS bridge. Your router sends standard dynamic DNS updates, FlareDDNS translates them into Cloudflare API calls.
 
+![FlareDDNS Dashboard](screen.png)
+
 ## Quick Start
 
 ```bash
