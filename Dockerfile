@@ -16,7 +16,7 @@ COPY server/package.json server/
 RUN npm ci --workspace=server --omit=dev
 COPY server/ server/
 COPY --from=client-build /build/client/dist client/dist/
-RUN mkdir -p data && chown node:node data
-EXPOSE 8080
-USER node
-CMD ["node", "server/src/index.js"]
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+EXPOSE ${PORT:-8080}
+CMD ["./entrypoint.sh"]
