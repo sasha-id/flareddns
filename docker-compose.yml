@@ -1,6 +1,6 @@
 services:
   flareddns:
-    build: .
+    image: sashatech/flareddns:latest
     ports:
       - "8080:8080"
     volumes:
