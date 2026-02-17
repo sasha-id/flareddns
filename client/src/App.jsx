@@ -16,15 +16,20 @@ export default function App() {
   async function handleLogin(e) {
     e.preventDefault();
     setError('');
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (res.ok) {
-      setAuth(prev => ({ ...prev, authenticated: true }));
-    } else {
-      setError('Invalid credentials');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.ok) {
+        setPassword('');
+        setAuth(prev => ({ ...prev, authenticated: true }));
+      } else {
+        setError('Invalid credentials');
+      }
+    } catch {
+      setError('Connection failed');
     }
   }
 
@@ -39,16 +44,18 @@ export default function App() {
           <h1 className="text-2xl font-bold text-center mb-6">
             <span className="text-cf-orange">Flare</span>DDNS
           </h1>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+          {error && <p role="alert" className="text-red-500 text-sm mb-4">{error}</p>}
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="text" placeholder="Username" value={username}
               onChange={e => setUsername(e.target.value)}
+              aria-label="Username"
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cf-orange"
             />
             <input
               type="password" placeholder="Password" value={password}
               onChange={e => setPassword(e.target.value)}
+              aria-label="Password"
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cf-orange"
             />
             <button type="submit" className="w-full py-2 bg-cf-orange text-white rounded-lg hover:bg-cf-orange-dark">

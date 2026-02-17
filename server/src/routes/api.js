@@ -151,8 +151,10 @@ function createApiRouter() {
   // Logs
   router.get('/logs', (req, res) => {
     const db = getDb();
-    const { hostname, response, page = 1, limit = 50 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { hostname, response } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const offset = (page - 1) * limit;
 
     let where = 'WHERE 1=1';
     const params = [];
@@ -162,13 +164,13 @@ function createApiRouter() {
     const total = db.prepare(`SELECT COUNT(*) as count FROM update_log ${where}`).get(...params);
     const logs = db.prepare(
       `SELECT * FROM update_log ${where} ORDER BY id DESC LIMIT ? OFFSET ?`
-    ).all(...params, parseInt(limit), offset);
+    ).all(...params, limit, offset);
 
     res.json({
       logs,
       total: total.count,
-      page: parseInt(page),
-      totalPages: Math.ceil(total.count / parseInt(limit)),
+      page,
+      totalPages: Math.ceil(total.count / limit),
     });
   });
 
@@ -188,11 +190,15 @@ function createApiRouter() {
     const { cfApiToken, rateLimitWindow, rateLimitMax } = req.body;
 
     if (cfApiToken) {
-      const result = await cf.validateToken(cfApiToken);
-      if (!result.valid) {
-        return res.status(400).json({ error: 'Invalid token' });
+      try {
+        const result = await cf.validateToken(cfApiToken);
+        if (!result.valid) {
+          return res.status(400).json({ error: 'Invalid token' });
+        }
+        setSetting('cf_api_token', cfApiToken);
+      } catch (err) {
+        return res.status(500).json({ error: 'Failed to validate token' });
       }
-      setSetting('cf_api_token', cfApiToken);
     }
 
     if (rateLimitWindow !== undefined) setSetting('rate_limit_window', String(rateLimitWindow));

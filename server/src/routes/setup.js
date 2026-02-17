@@ -6,11 +6,23 @@ const config = require('../config');
 function createSetupRouter() {
   const router = express.Router();
 
+  router.use((req, res, next) => {
+    if (getSetting('setup_complete') === 'true') {
+      return res.status(403).json({ error: 'Setup already complete' });
+    }
+    next();
+  });
+
   router.post('/validate-token', express.json(), async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
 
-    const result = await cf.validateToken(token);
+    let result;
+    try {
+      result = await cf.validateToken(token);
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to validate token' });
+    }
     if (result.valid) {
       setSetting('cf_api_token_pending', token);
       return res.json({ valid: true });

@@ -1,9 +1,22 @@
 const express = require('express');
+const crypto = require('node:crypto');
 const { getDb, getSetting } = require('../db');
 const { findZoneForHostname } = require('../zones');
 const { getClientIp, isIPv4, isIPv6 } = require('../ip');
 const { createRateLimiter } = require('../ratelimit');
 const cf = require('../cloudflare');
+const config = require('../config');
+
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, Buffer.alloc(bufA.length));
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 function createDdnsRouter() {
   const router = express.Router();
@@ -23,8 +36,7 @@ function createDdnsRouter() {
     const password = passparts.join(':');
 
     // Validate against DDNS_USERS
-    const config = require('../config');
-    const validUser = config.ddnsUsers.find(u => u.username === username && u.password === password);
+    const validUser = config.ddnsUsers.find(u => safeEqual(u.username, username) && safeEqual(u.password, password));
     if (!validUser) {
       logUpdate(req, '', '', username, 'badauth');
       return res.send('badauth');
@@ -46,7 +58,14 @@ function createDdnsRouter() {
     // Parse IPs
     const myipParam = req.query.myip || '';
     const detectedIp = getClientIp(req);
-    const ips = myipParam ? myipParam.split(',').map(ip => ip.trim()).filter(Boolean) : [detectedIp];
+    const ips = myipParam
+      ? myipParam.split(',').map(ip => ip.trim()).filter(ip => ip && (isIPv4(ip) || isIPv6(ip)))
+      : [detectedIp];
+
+    if (ips.length === 0) {
+      logUpdate(req, hostnames[0], '', username, 'dnserr');
+      return res.send('dnserr');
+    }
 
     // Get zones from DB
     const db = getDb();
