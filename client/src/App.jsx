@@ -1,4 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Domains from './pages/Domains';
+import Logs from './pages/Logs';
+import Settings from './pages/Settings';
+import SetupWizard from './pages/SetupWizard';
 
 export default function App() {
   const [auth, setAuth] = useState({ authenticated: false, setupComplete: false, loading: true });
@@ -67,10 +74,18 @@ export default function App() {
     );
   }
 
+  if (!auth.setupComplete) {
+    return <SetupWizard onComplete={() => setAuth(prev => ({ ...prev, setupComplete: true }))} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-2xl font-bold"><span className="text-cf-orange">Flare</span>DDNS</h1>
-      <p className="mt-4 text-gray-600">Dashboard will be wired in Task 18.</p>
-    </div>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/domains" element={<Domains />} />
+        <Route path="/logs" element={<Logs />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+    </Routes>
   );
 }
