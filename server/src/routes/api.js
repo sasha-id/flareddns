@@ -64,6 +64,21 @@ function createApiRouter() {
           update.run(zone.name, zone.status, zone.id);
         }
       }
+
+      // Sync A/AAAA records for managed zones
+      const insertRecord = db.prepare(
+        'INSERT OR REPLACE INTO dns_records (id, zone_id, name, type, content, proxied, ttl, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      const now = new Date().toISOString();
+      for (const zoneId of existing) {
+        const records = await cf.listDnsRecords(token, zoneId);
+        for (const r of records) {
+          if (r.type === 'A' || r.type === 'AAAA') {
+            insertRecord.run(r.id, zoneId, r.name, r.type, r.content, r.proxied ? 1 : 0, r.ttl, now);
+          }
+        }
+      }
+
       const zones = db.prepare('SELECT * FROM zones ORDER BY name').all();
       res.json(zones);
     } catch (err) {
