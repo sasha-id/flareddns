@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 
 function createSetupRouter() {
   const router = express.Router();
+  let cachedZones = null;
 
   router.use((req, res, next) => {
     if (getSetting('setup_complete') === 'true') {
@@ -39,6 +40,7 @@ function createSetupRouter() {
 
     try {
       const zones = await cf.listZones(token);
+      cachedZones = zones;
       res.json(zones.map(z => ({ id: z.id, name: z.name, status: z.status })));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -55,7 +57,8 @@ function createSetupRouter() {
     if (!token) return res.status(400).json({ error: 'No token configured' });
 
     try {
-      const allZones = await cf.listZones(token);
+      const allZones = cachedZones || await cf.listZones(token);
+      cachedZones = null;
       const db = getDb();
       const insert = db.prepare('INSERT OR REPLACE INTO zones (id, name, status) VALUES (?, ?, ?)');
       const saveZones = db.transaction((zones) => {

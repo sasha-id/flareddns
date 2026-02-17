@@ -4,21 +4,23 @@ const STEPS = ['Welcome', 'API Token', 'Select Zones', 'Complete'];
 
 function StepIndicator({ current }) {
   return (
-    <div className="flex items-center justify-center mb-8">
+    <div className="flex items-start mb-8">
       {STEPS.map((label, i) => (
-        <div key={label} className="flex items-center">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-            i < current ? 'bg-cf-orange text-white' :
-            i === current ? 'bg-cf-orange text-white ring-4 ring-cf-orange/20' :
-            'bg-gray-200 text-gray-500'
-          }`}>
-            {i < current ? '\u2713' : i + 1}
+        <div key={label} className={`flex items-center ${i < STEPS.length - 1 ? 'flex-1' : ''}`}>
+          <div className="flex flex-col items-center shrink-0">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+              i < current ? 'bg-cf-orange text-white' :
+              i === current ? 'bg-cf-orange text-white ring-4 ring-cf-orange/20' :
+              'bg-gray-200 text-gray-500'
+            }`}>
+              {i < current ? '\u2713' : i + 1}
+            </div>
+            <span className={`mt-1.5 text-xs whitespace-nowrap ${
+              i === current ? 'text-gray-900 font-medium' : 'text-gray-500'
+            }`}>{label}</span>
           </div>
-          <span className={`ml-2 text-sm hidden sm:inline ${
-            i === current ? 'text-gray-900 font-medium' : 'text-gray-500'
-          }`}>{label}</span>
           {i < STEPS.length - 1 && (
-            <div className={`w-8 sm:w-16 h-0.5 mx-2 ${i < current ? 'bg-cf-orange' : 'bg-gray-200'}`} />
+            <div className={`h-0.5 flex-1 mx-3 mt-4 ${i < current ? 'bg-cf-orange' : 'bg-gray-200'}`} />
           )}
         </div>
       ))}
